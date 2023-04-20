@@ -1,0 +1,83 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}
+  labels:
+    app: {{ .Release.Name }}
+spec:
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}
+  replicas: {{ .Values.replicas }}
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/config.yaml") . | sha256sum }}
+      labels:
+        app: {{ .Release.Name }}
+{{ if .Values.podLabels }}
+{{ toYaml .Values.podLabels | indent 8 }} 
+{{ end }}
+    spec:
+{{ if .Values.tolerations }}
+      tolerations:
+{{ toYaml .Values.tolerations | nindent 6 }}
+{{ end }}
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - {{ .Release.Name }}
+            topologyKey: kubernetes.io/hostname
+      volumes:
+      - name: config
+        configMap:
+          name: {{ .Release.Name }}-config
+      containers:
+      - name: {{ .Release.Name }}
+        image: {{ .Values.registry.image }}
+        imagePullPolicy: {{ .Values.registry.imagePullPolicy }}
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: {{ .Values.securityContext.runAsUser }}
+          runAsGroup: {{ .Values.securityContext.runAsGroup }}
+          privileged: false
+          readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+{{ if .Values.env }}
+        env:
+{{ toYaml .Values.env | indent 8 }}
+{{ end }}
+        args:
+        - -config=/config/config.yaml
+{{ if .Values.args }}
+{{ toYaml .Values.args | indent 8 }}
+{{ end }}
+        ports:
+        - containerPort: 28180
+        volumeMounts:
+        - name: config
+          mountPath: /config
+        resources:
+{{ toYaml .Values.resources | indent 10 }}
+        readinessProbe:
+          httpGet:
+            scheme: HTTP
+            path: /ready
+            port: 28180
+          initialDelaySeconds: 30
+          periodSeconds: 5
+        livenessProbe:
+          httpGet:
+            scheme: HTTP
+            path: /healthz
+            port: 28180
+          initialDelaySeconds: 60
+          periodSeconds: 10

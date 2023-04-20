@@ -1,0 +1,35 @@
+replicas: 2
+
+securityContext:
+  runAsUser: 30523
+  runAsGroup: 30523
+
+podLabels: {}
+
+pdb:
+  enabled: true
+  minAvailable: 1
+
+registry:
+  image: paskalmaksim/sre-metrics-exporter:dev
+  imagePullPolicy: Always
+
+env: []
+args: []
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 200Mi
+  limits:
+    cpu: 100m
+    memory: 200Mi
+
+tolerations: []
+# - key: "kubernetes.azure.com/scalesetpriority"
+#   operator: "Equal"
+#   value: "spot"
+#   effect: "NoSchedule"
+
+# application config
+config: ""
